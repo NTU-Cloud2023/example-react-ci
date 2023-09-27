@@ -3,18 +3,28 @@ import { CognitoUser, CognitoUserPool } from 'amazon-cognito-identity-js';
 import logo from './logo.svg';
 import './App.css';
 
-const poolData = {
-    UserPoolId: '#{poolid}',
-    ClientId: '#{clientid}'
-};
-
-const userPool = new CognitoUserPool(poolData);
-
 function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(null);
     const [hasAuthCode, setHasAuthCode] = useState(false);
+    const [poolData, setPoolData] = useState(null);
 
     useEffect(() => {
+        // Fetch poolid and clientid from authconfig.json
+        fetch('http://localhost:3000/authconfig.json')
+            .then(response => response.json())
+            .then(data => {
+                setPoolData({
+                    UserPoolId: data.poolid,
+                    ClientId: data.clientid
+                });
+            })
+            .catch(error => console.error('Error:', error));
+    }, []);
+
+    useEffect(() => {
+        if (!poolData) return;
+
+        const userPool = new CognitoUserPool(poolData);
         const cognitoUser = userPool.getCurrentUser();
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -49,7 +59,7 @@ function App() {
             setIsLoggedIn(false);
         }
 
-    }, []);
+    }, [poolData]);
 
     useEffect(() => {
         if (isLoggedIn === true) {
@@ -63,19 +73,21 @@ function App() {
     }, [isLoggedIn, hasAuthCode]);
 
     const handleSignOut = () => {
+        if (!poolData) return;
+
         console.log("Sign out button clicked!");
+        const userPool = new CognitoUserPool(poolData);
         const user = userPool.getCurrentUser();
-        console.log(user)
+
         if (user) {
             user.signOut();
             setIsLoggedIn(false);
             setHasAuthCode(false); // 清除授權碼狀態
-            // 重定向到主頁面或其他需要的頁面
             window.location.href = "http://localhost:3000";
         }
     }
 
-    if (isLoggedIn === null) {
+    if (isLoggedIn === null || !poolData) {
         return <div>Loading...</div>;
     }
 
